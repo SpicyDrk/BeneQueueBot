@@ -17,7 +17,7 @@ class MyClient(discord.Client):
 
         # list of discord channel IDs to update nickname in
         self.guild_ids = []
-        self.prev_queue = 0
+        self.prev_queue = -1
 
     async def setup_hook(self) -> None:
         # start the task to run in the background
@@ -32,21 +32,26 @@ class MyClient(discord.Client):
     async def update_nickname(self, queue, eta):
         if (queue != self.prev_queue):
             for id in self.guild_ids:
+                print(queue, eta)
                 await client.get_guild(id).me.edit(nick=f'Queue: {queue}')
                 await client.change_presence(activity=discord.Game(name=f'ETA {eta}'))
                 if self.prev_queue == 0:
                     break # Maybe notify @member or a queue watching group about the queue starting.  (will require ping permissions)               
                 self.prev_queue = queue
 
-    @tasks.loop(minutes=5)  # task runs every 5 minutes
+    @tasks.loop(minutes=1)  # task runs every 1 minute
     async def check_for_update(self):
         url = 'https://multidollar.company/'
         response = requests.get(url)
         if response.status_code == 200:
-            queue = re.search('<div>Number in queue: <span class="has-text-danger">([0-9]*)', response.text, re.IGNORECASE).group(1)
-            eta = re.search('<div>Blizzard ETA: <span class="has-text-danger">(.*)(?=<\/span>)', response.text, re.IGNORECASE).group(1)
-            if queue and eta:
-               await self.update_nickname(queue, eta)
+            try:
+                queue = re.search('<div>Number in queue: <span class="has-text-danger">([0-9]*)', response.text, re.IGNORECASE).group(1)
+                eta = re.search('<div>Blizzard ETA: <span class="has-text-danger">(.*)(?=<\/span>)', response.text, re.IGNORECASE).group(1)
+            except AttributeError:
+                queue = '0' 
+                eta = '0 minutes'
+            await self.update_nickname(queue, eta)
+            
 
     @check_for_update.before_loop
     async def before_my_task(self):
