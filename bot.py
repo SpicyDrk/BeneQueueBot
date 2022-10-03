@@ -21,7 +21,7 @@ class MyClient(discord.Client):
 
     async def setup_hook(self) -> None:
         # start the task to run in the background
-        self.my_background_task.start()
+        self.check_for_update.start()
 
     async def on_ready(self):
         for guild in client.guilds:
@@ -33,13 +33,13 @@ class MyClient(discord.Client):
         if (queue != self.prev_queue):
             for id in self.guild_ids:
                 await client.get_guild(id).me.edit(nick=f'Queue: {queue}')
-                await client.change_presence(activity=discord.Game(name=f'ETA: {eta}'))
+                await client.change_presence(activity=discord.Game(name=f'ETA {eta}'))
                 if self.prev_queue == 0:
                     break # Maybe notify @member or a queue watching group about the queue starting.  (will require ping permissions)               
                 self.prev_queue = queue
 
     @tasks.loop(minutes=5)  # task runs every 5 minutes
-    async def my_background_task(self):
+    async def check_for_update(self):
         url = 'https://multidollar.company/'
         response = requests.get(url)
         if response.status_code == 200:
@@ -48,7 +48,7 @@ class MyClient(discord.Client):
             if queue and eta:
                await self.update_nickname(queue, eta)
 
-    @my_background_task.before_loop
+    @check_for_update.before_loop
     async def before_my_task(self):
         await self.wait_until_ready()  # wait until the bot logs in
 
